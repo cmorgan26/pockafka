@@ -4,7 +4,7 @@ console.log(Kafka.librdkafkaVersion);
 // Our producer with its Kafka brokers
 // This call returns a new writable stream to our topic 'topic-name'
 var stream = Kafka.Producer.createWriteStream({
-  'metadata.broker.list': 'localhost:9092'
+  'metadata.broker.list': '51.158.125.112:9092'
 }, {}, {
     topic: 'topic-uiq-test-kafka'
   });
