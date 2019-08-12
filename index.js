@@ -67,6 +67,10 @@ producer.connect(null, function() {
   producer_ready = true
 })
 
+async function sleep(timeoutMs=1000) {
+  return await new Promise(resolve => setTimeout(resolve, timeoutMs))
+}
+
 async function sendMessage(topic, message) {
   if(producer_ready){
     // topic, partition (-1 tells it to use internal schema), message
@@ -77,14 +81,14 @@ async function sendMessage(topic, message) {
       console.error(err);
     }
   } else {
-    await sleep(250)
+    await sleep(250).catch(err => log.error(err))
     return await sendMessage(topic, message)
   }
 }
 for (let i=0; i < 1000; i++){
   message_received++
   log.info(`Messages received = ${message_received}`)
-  sendMessage('events_raw_qa', 'Hello Confluent')
+  sendMessage('events_raw_qa', 'Hello Confluent').catch(err => log.error(err))
 }
 process.on("SIGINT", killProcess);
 process.on("SIGTERM", killProcess);
