@@ -85,7 +85,7 @@ async function sendMessage(topic, message) {
     return await sendMessage(topic, message)
   }
 }
-for (let i=0; i < 1000; i++){
+for (let i=0; i < 10; i++){
   message_received++
   log.info(`Messages received = ${message_received}`)
   sendMessage('events_raw_qa', 'Hello Confluent').catch(err => log.error(err))
