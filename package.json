@@ -10,6 +10,6 @@
   "license": "ISC",
   "dependencies": {
     "bunyan": "1.8.12",
-    "node-rdkafka": "^2.7.0",
+    "node-rdkafka": "^2.7.0"
   }
 }
