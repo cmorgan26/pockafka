@@ -1,29 +1,78 @@
 var Kafka = require('node-rdkafka');
 console.log(Kafka.features);
 console.log(Kafka.librdkafkaVersion);
-// Our producer with its Kafka brokers
-// This call returns a new writable stream to our topic 'topic-name'
-var stream = Kafka.Producer.createWriteStream({
-  'metadata.broker.list': '51.158.125.112:9092'
-}, {}, {
-    topic: 'topic-uiq-test-kafka'
-  });
+let producer_ready = false
+let producer_config = {};
+producer_config = {
+    'bootstrap.servers': process.env.CONFLUENT_URL || 'localhost:9092',
+    'api.version.request': true,
+    'broker.version.fallback': '0.10.0.0',
+    'api.version.fallback.ms': 0,
+    'sasl.mechanisms': 'PLAIN',
+    'security.protocol': 'SASL_SSL',
+    'ssl.ca.location': '/usr/local/etc/openssl/cert.pem',
+    'sasl.username': process.env.CONFLUENT_API_KEY,
+    'sasl.password': process.env.CONFLUENT_SECRET_KEY,
+    'client.id': (() => {
+      const dyno = process.env.DYNO
+      const isChild = process.send !== undefined
+      const r = Math.floor(Math.random()*1e4)
+      let suffix = r
+      if (dyno) {
+        suffix = dyno
+        if (isChild)
+          suffix = `${suffix}_${process.pid}`
+      }
+      return `useriq_bigdata_stream_node_${suffix}`
+    })()
+  ,
+      'compression.codec': 'gzip',
+      'retry.backoff.ms': 200,
+      'message.send.max.retries': 10,
+      'socket.keepalive.enable': true,
+      'queue.buffering.max.messages': 100000,
+      'queue.buffering.max.ms': 1000,
+      'batch.num.messages': 1000000,
+      'dr_cb': true
+  
+}
+const producer = new Kafka.Producer(producer_config);
+producer.on("delivery-report", function(err, report) {
+  log.info("delivery report incoming");
+  message_sent++
+  log.info(report);
+  log.info(`Messages sent: ${message_sent}`)
+})
+producer.on("event.error", function(e) {
+  log.error(e);
+})
+producer.setPollInterval(100);
+producer.connect(null, function() {
+  producer_ready = true
+})
 
-// Writes a message to the stream
-var queuedSuccess = stream.write(Buffer.from('Awesome message'));
-
-if (queuedSuccess) {
-  console.log('We queued our message!');
-} else {
-  // Note that this only tells us if the stream's queue is full,
-  // it does NOT tell us if the message got to Kafka!  See below...
-  console.log('Too many messages in our queue already');
+async function sendMessage(topic, message) {
+  if(producer_ready){
+    // topic, partition (-1 tells it to use internal schema), message
+    try {
+      await producer.produce(topic, -1, message)
+    } catch (err) {
+      console.error('A problem occurred when sending our message');
+      console.error(err);
+    }
+  } else {
+    await sleep(250)
+    return await sendMessage(topic, message)
+  }
 }
 
-// NOTE: MAKE SURE TO LISTEN TO THIS IF YOU WANT THE STREAM TO BE DURABLE
-// Otherwise, any error will bubble up as an uncaught exception.
-stream.on('error', function (err) {
-  // Here's where we'll know if something went wrong sending to Kafka
-  console.error('Error in our kafka stream');
-  console.error(err);
-})
+sendMessage('events_raw_qa', 'Hello Confluent')
+process.on("SIGINT", killProcess);
+process.on("SIGTERM", killProcess);
+
+function killProcess() {
+  producer.disconnect(null, function(){
+    producer_ready = false
+  })
+  setTimeout(() => process.exit(), 8000);
+}
