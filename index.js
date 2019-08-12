@@ -1,6 +1,12 @@
-var Kafka = require('node-rdkafka');
-console.log(Kafka.features);
-console.log(Kafka.librdkafkaVersion);
+const Kafka = require("node-rdkafka");
+const bunyan = require("bunyan");
+const log = bunyan.createLogger(config.logger.options);
+
+log(Kafka.features);
+log(Kafka.librdkafkaVersion);
+
+let message_sent = 0
+let message_received = 0
 let producer_ready = false
 let producer_config = {};
 producer_config = {
@@ -57,7 +63,7 @@ async function sendMessage(topic, message) {
     try {
       await producer.produce(topic, -1, message)
     } catch (err) {
-      console.error('A problem occurred when sending our message');
+      error('A problem occurred when sending our message');
       console.error(err);
     }
   } else {
@@ -65,8 +71,11 @@ async function sendMessage(topic, message) {
     return await sendMessage(topic, message)
   }
 }
-
-sendMessage('events_raw_qa', 'Hello Confluent')
+for (let i=0; i < 1000; i++){
+  message_received++
+  log.info(`Messages received = ${message_received}`)
+  sendMessage('events_raw_qa', 'Hello Confluent')
+}
 process.on("SIGINT", killProcess);
 process.on("SIGTERM", killProcess);
 
