@@ -77,8 +77,8 @@ async function sendMessage(topic, message) {
     try {
       await producer.produce(topic, -1, message)
     } catch (err) {
-      error('A problem occurred when sending our message');
-      console.error(err);
+      log.error('A problem occurred when sending our message');
+      log.error(err);
     }
   } else {
     await sleep(250).catch(err => log.error(err))
