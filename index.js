@@ -1,6 +1,16 @@
 const Kafka = require("node-rdkafka");
 const bunyan = require("bunyan");
-const log = bunyan.createLogger(config.logger.options);
+const log = bunyan.createLogger({
+  name: process.env.APP_NAME || "useriq_bigdata_stream",
+  level: process.env.LOGGING_LEVEL || "info",
+  stream: process.stdout
+  /*streams: [
+    {
+      level: process.env.LOGGING_LEVEL || "info",
+      path: path.join(__dirname,"..","logs","wiki.log")
+    }
+  ]*/
+});
 
 log(Kafka.features);
 log(Kafka.librdkafkaVersion);
