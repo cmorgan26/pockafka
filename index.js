@@ -12,8 +12,8 @@ const log = bunyan.createLogger({
   ]*/
 });
 
-log(Kafka.features);
-log(Kafka.librdkafkaVersion);
+log.info(Kafka.features);
+log.info(Kafka.librdkafkaVersion);
 
 let message_sent = 0
 let message_received = 0
