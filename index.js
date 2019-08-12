@@ -1,5 +1,6 @@
 const Kafka = require("node-rdkafka");
 const bunyan = require("bunyan");
+const config = require("config.js")
 const log = bunyan.createLogger({
   name: process.env.APP_NAME || "useriq_bigdata_stream",
   level: process.env.LOGGING_LEVEL || "info",
@@ -15,49 +16,20 @@ const log = bunyan.createLogger({
 log.info(Kafka.features);
 log.info(Kafka.librdkafkaVersion);
 
-let message_sent = 0
-let message_received = 0
+let messages_delivered = 0
+let messages_sent = 0
 let producer_ready = false
 let producer_config = {};
 producer_config = {
-    'bootstrap.servers': process.env.CONFLUENT_URL || 'localhost:9092',
-    'api.version.request': true,
-    'broker.version.fallback': '0.10.0.0',
-    'api.version.fallback.ms': 0,
-    'sasl.mechanisms': 'PLAIN',
-    'security.protocol': 'SASL_SSL',
-    'ssl.ca.location': '/usr/local/etc/openssl/cert.pem',
-    'sasl.username': process.env.CONFLUENT_API_KEY,
-    'sasl.password': process.env.CONFLUENT_SECRET_KEY,
-    'client.id': (() => {
-      const dyno = process.env.DYNO
-      const isChild = process.send !== undefined
-      const r = Math.floor(Math.random()*1e4)
-      let suffix = r
-      if (dyno) {
-        suffix = dyno
-        if (isChild)
-          suffix = `${suffix}_${process.pid}`
-      }
-      return `useriq_bigdata_stream_node_${suffix}`
-    })()
-  ,
-      'compression.codec': 'gzip',
-      'retry.backoff.ms': 200,
-      'message.send.max.retries': 10,
-      'socket.keepalive.enable': true,
-      'queue.buffering.max.messages': 100000,
-      'queue.buffering.max.ms': 1000,
-      'batch.num.messages': 1000000,
-      'dr_cb': true
-  
-}
+  ...config.rdkafka.base_config,
+  ...config.rdkafka.producer_config
+};
 const producer = new Kafka.Producer(producer_config);
 producer.on("delivery-report", function(err, report) {
   log.info("delivery report incoming");
-  message_sent++
+  messages_delivered++
   log.info(report);
-  log.info(`Messages sent: ${message_sent}`)
+  log.info(`Messages delivered: ${messages_delivered}`)
 })
 producer.on("event.error", function(e) {
   log.error(e);
@@ -66,7 +38,7 @@ producer.setPollInterval(100);
 producer.connect(null, function() {
   producer_ready = true
 })
-
+log.info(producer)
 async function sleep(timeoutMs=1000) {
   return await new Promise(resolve => setTimeout(resolve, timeoutMs))
 }
@@ -86,8 +58,8 @@ async function sendMessage(topic, message) {
   }
 }
 for (let i=0; i < 10; i++){
-  message_received++
-  log.info(`Messages received = ${message_received}`)
+  messages_sent++
+  log.info(`Messages sent = ${messages_sent}`)
   sendMessage('events_raw_qa', 'Hello Confluent').catch(err => log.error(err))
 }
 process.on("SIGINT", killProcess);
